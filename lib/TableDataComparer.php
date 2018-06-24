@@ -47,25 +47,29 @@ class TableDataComparer extends DatabaseTable {
 				$primaryKeyColName = $primaryKeyColumns[0]["name"];
 				$primaryKeyColDataType = $primaryKeyColumns[0]["data_type"];
 
-                                $this->processAutoIncrementTable($schemaName, $tableName, $primaryKeyColName, $primaryKeyColDataType, $tableColumnsInfo);
+                                $this->processAutoIncrementTable($schemaName, $tableName, $primaryKeyColName, $primaryKeyColDataType, 
+									$tableColumnsInfo);
 			}
 		}
 	}
 
-	private function processAutoIncrementTable($schemaName, $tableName, $primaryKeyColName, $primaryKeyColDataType, $tableColumnsInfo) {
+	private function processAutoIncrementTable($schemaName, $tableName, $primaryKeyColName, $primaryKeyColDataType, 
+							$tableColumnsInfo) {
                 $seedConn = $this->_seedConnectionInfo["conn"];
                 $destConn = $this->_destConnectionInfo["conn"];
 
                 $seedHostname = $this->_seedConnectionInfo["hostname"];
 
-                $tempTableName = $this->createTemporaryComparisonTable($seedHostname, $schemaName, $tableName, $primaryKeyColName, $primaryKeyColDataType);
+                $tempTableName = $this->createTemporaryComparisonTable($seedHostname, $schemaName, $tableName, $primaryKeyColName, 
+									$primaryKeyColDataType);
                                 
                 $highestSeedAutoIncId = $this->getMaxTableAutoIncId($seedConn, $schemaName, $tableName, $primaryKeyColName);
                 $highestDestAutoIncId = $this->getMaxTableAutoIncId($destConn, $schemaName, $tableName, $primaryKeyColName);
                                 
                 $maxIdToUse = min($highestSeedAutoIncId, $highestDestAutoIncId);
                                 
-                $allPrimaryKeyAutoIncIds = $this->getAllTableAutoIncrementIds($seedConn, $schemaName, $tableName, $primaryKeyColName, $maxIdToUse);
+                $allPrimaryKeyAutoIncIds = $this->getAllTableAutoIncrementIds($seedConn, $schemaName, $tableName, $primaryKeyColName, 
+										$maxIdToUse);
                                
                 foreach ($allPrimaryKeyAutoIncIds as $id) {
                         $md5Value = $this->getRowHash($seedConn, $schemaName, $tableName, $primaryKeyColName, $id, $tableColumnsInfo);
@@ -110,7 +114,19 @@ class TableDataComparer extends DatabaseTable {
 	}
 
 	private function getTableDifferences($seedConn, $schemaName, $primaryKeyColName, $tempTableName) {
-		$sql = "select $primaryKeyColName from $schemaName.$tempTableName where seed_md5 is null union all select $primaryKeyColName from $schemaName.$tempTableName where dest_md5 is null union all select $primaryKeyColName from $schemaName.$tempTableName where seed_md5 is not null and dest_md5 is not null and seed_md5 <> dest_md5";
+		$sql = "select $primaryKeyColName 
+			from $schemaName.$tempTableName 
+			where seed_md5 is null 
+			union all 
+			select $primaryKeyColName 
+			from $schemaName.$tempTableName 
+			where dest_md5 is null 
+			union all 
+			select $primaryKeyColName 
+			from $schemaName.$tempTableName 
+			where seed_md5 is not null and 
+				dest_md5 is not null and 
+				seed_md5 <> dest_md5";
 
 		$res = $this->query($seedConn, $sql);
 
@@ -139,10 +155,12 @@ class TableDataComparer extends DatabaseTable {
 	
 	private function insertRowHash($tempTableName, $primaryKeyColName, $id, $src, $md5Value) {
 		if ($src == "seed") {
-			$sql = "insert into $tempTableName ($primaryKeyColName, seed_md5, dest_md5) VALUES($id, '$md5Value', NULL) ON DUPLICATE KEY UPDATE seed_md5 = '$md5Value'";
+			$sql = "insert into $tempTableName ($primaryKeyColName, seed_md5, dest_md5) 
+					VALUES($id, '$md5Value', NULL) ON DUPLICATE KEY UPDATE seed_md5 = '$md5Value'";
 		}
 		else {
-                        $sql = "insert into $tempTableName ($primaryKeyColName, seed_md5, dest_md5) VALUES($id, '$md5Value', NULL) ON DUPLICATE KEY UPDATE dest_md5 = '$md5Value'";
+                        $sql = "insert into $tempTableName ($primaryKeyColName, seed_md5, dest_md5) 
+					VALUES($id, '$md5Value', NULL) ON DUPLICATE KEY UPDATE dest_md5 = '$md5Value'";
                 }
 
 		$this->query($this->_adminConnectionInfo["conn"], $sql);
@@ -166,7 +184,8 @@ class TableDataComparer extends DatabaseTable {
 
 		$controlTableName = "rc_" . md5($seedHostname . "-" . $schemaName . "-" . $tableName);
 
-		$sql = "insert into rc_compare_table_names (seed_hostname, schema_name, table_name, control_table_name) values('$seedHostname', '$schemaName', '$tableName', '$controlTableName')";
+		$sql = "insert into rc_compare_table_names (seed_hostname, schema_name, table_name, control_table_name) 
+				values('$seedHostname', '$schemaName', '$tableName', '$controlTableName')";
 
 		$conn = $this->_adminConnectionInfo["conn"];
 
@@ -214,7 +233,10 @@ class TableDataComparer extends DatabaseTable {
 		$rows = array();
 
 		while (true) {
-			$sql = "select $primaryKeyColName from $schemaName.$tableName where $primaryKeyColName <= $maxIdToUse order by $primaryKeyColName limit $limit OFFSET $offset";
+			$sql = "select $primaryKeyColName 
+				from $schemaName.$tableName 
+				where $primaryKeyColName <= $maxIdToUse 
+				order by $primaryKeyColName limit $limit OFFSET $offset";
 
 			$res = $this->query($conn, $sql);
 	
