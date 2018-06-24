@@ -72,18 +72,6 @@ else {
 	$tableDataComparer->compareSchema($schemaToCompare);
 }
 
-/*
-MariaDB [dbcompare]> show columns from dbcompare.t1;
-+-------+---------------------+------+-----+---------+----------------+
-| Field | Type                | Null | Key | Default | Extra          |
-+-------+---------------------+------+-----+---------+----------------+
-| id    | bigint(20) unsigned | NO   | PRI | NULL    | auto_increment |
-| col1  | varchar(40)         | NO   |     | NULL    |                |
-| col2  | varchar(40)         | NO   |     | NULL    |                |
-+-------+---------------------+------+-----+---------+----------------+
-3 rows in set (0.00 sec)
-*/
-
 function Syntax($scriptName) {
 	die("Syntax: php $scriptName --seedhost=<hostorip> --desthost=<hostorip>\n");
 }
