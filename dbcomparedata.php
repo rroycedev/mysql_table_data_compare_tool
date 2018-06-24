@@ -45,12 +45,15 @@ echo "Comparing seed host [$seedHost] with [$destHost] " . ($schemaToCompare == 
 $databaseTable = new DatabaseTable();
 
 try {
-	$adminConn = $databaseTable->Connect($adminConfig["dbhost"], $adminConfig["dbuser"], $adminConfig["dbpswd"], $adminConfig["dbname"]);
+	$adminConn = $databaseTable->Connect($adminConfig["dbhost"], $adminConfig["dbuser"], $adminConfig["dbpswd"], 
+						$adminConfig["dbname"]);
 
-	$seedConn = $databaseTable->Connect($seedHost, $serverConfig["dbuser"], $serverConfig["dbpswd"], "");
+	$seedConn = $databaseTable->Connect($seedHost, $serverConfig["dbuser"], $serverConfig["dbpswd"], 
+						"");
 	$databaseTable->query($seedConn, "set sql_log_bin=0");
 
-	$destConn = $databaseTable->Connect($destHost, "rroyce", "mcdoodle22", "");
+	$destConn = $databaseTable->Connect($destHost, $serverConfig["dbuser"], $serverConfig["dbpswd"],
+						"");
         $databaseTable->query($destConn, "set sql_log_bin=0");
 }
 catch(Exception $ex) {
@@ -61,7 +64,8 @@ echo "Connected successfully to admin host: " . $adminConfig["dbhost"] . "\n";
 echo "Connected successfully to seed host: $seedHost \n";
 echo "Connected successfully to dest host: $destHost \n";
 
-$tableDataComparer = new TableDataComparer(	array("hostname" => $adminConfig["dbhost"], "dbname" => $adminConfig["dbname"], "conn" => $adminConn), 
+$tableDataComparer = new TableDataComparer(	array("hostname" => $adminConfig["dbhost"], 
+								"dbname" => $adminConfig["dbname"], "conn" => $adminConn), 
 						array("hostname" => $seedHost, "conn" => $seedConn), 
 						array("hostname" => $destHost, "conn" => $destConn));
 
