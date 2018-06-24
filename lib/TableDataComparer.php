@@ -18,7 +18,7 @@ class TableDataComparer extends DatabaseTable {
 
 		$seedHostname = $this->_seedConnectionInfo["hostname"];
 	
-		$sql = "select table_name from information_schema.tables where table_schema = '$schemaName' and table_name not like 'temp_rc_%' order by table_name";
+		$sql = "select table_name from information_schema.tables where table_schema = '$schemaName' order by table_name";
 
 		$res = $this->query($seedConn, $sql);
 
@@ -33,62 +33,74 @@ class TableDataComparer extends DatabaseTable {
 
 			$tableColumnsInfo = $this->getTableColumnInfo($seedConn, $schemaName, $tableName);
 
-			$isAutoIncrement = false;
-			$primaryKeyColName = "";
-			$found = false;
+			$primaryKeyColumnInfo = $this->getPrimaryKeyColumns($tableColumnsInfo);
 
-			foreach ($tableColumnsInfo as $column) {
-				if ($column["Key"] == "PRI") {
-					print_r($column);
-					$found = true;
-					$primaryKeyColName = $column["Field"];
-					$primaryKeyColDataType = $column["Type"];
+			$primaryKeyColumns = $primaryKeyColumnInfo["columns"];
+			$isAutoIncrement = $primaryKeyColumnInfo["is_auto_increment"];
 
-					if ($column["Extra"] == "auto_increment") {
-						$isAutoIncrement = true;
-					}
-					else {
-						$isAutoIncrement = false;
-					}
-
-					 break;
-				}
-			}
-
-			if (!strlen($primaryKeyColName)) {
+			if (count($primaryKeyColumns) == 0) {
 				echo "No primary key found for table $schemaName.$tableName.  Skipping...\n";
 				continue;
 			}
 
-                        echo "Primary Key Column [$primaryKeyColName]  Is Auto Increment [" . ($isAutoIncrement ? "True" : "False") . "]\n";
-
 			if ($isAutoIncrement) {
-				$tempTableName = $this->createTemporaryComparisonTable($seedHostname, $schemaName, $tableName, $primaryKeyColName, $primaryKeyColDataType);
+				$primaryKeyColName = $primaryKeyColumns[0]["name"];
+				$primaryKeyColDataType = $primaryKeyColumns[0]["data_type"];
 
-				$highestSeedAutoIncId = $this->getMaxTableAutoIncId($seedConn, $schemaName, $tableName, $primaryKeyColName);
-				$highestDestAutoIncId = $this->getMaxTableAutoIncId($destConn, $schemaName, $tableName, $primaryKeyColName);	
-	
-				$maxIdToUse = min($highestSeedAutoIncId, $highestDestAutoIncId);
-			
-				$allPrimaryKeyAutoIncIds = $this->getAllTableAutoIncrementIds($seedConn, $schemaName, $tableName, $primaryKeyColName, $maxIdToUse);
-
-				foreach ($allPrimaryKeyAutoIncIds as $id) {
-                                        $md5Value = $this->getRowHash($seedConn, $schemaName, $tableName, $primaryKeyColName, $id, $tableColumnsInfo);
-                                        
-                                        $this->insertRowHash($tempTableName, $primaryKeyColName, $id, "seed", $md5Value);
-				}
-
-                                foreach ($allPrimaryKeyAutoIncIds as $id) {
-					$md5Value = $this->getRowHash($destConn, $schemaName, $tableName, $primaryKeyColName, $id, $tableColumnsInfo);
-
-                                        $this->insertRowHash($tempTableName, $primaryKeyColName, $id, "dest", $md5Value);
-                                }
-
-				$this->deleteRowsTheSame($tempTableName);
-
-//				$diff = $this->getTableDifferences($seedConn, $schemaName, $primaryKeyColName, $tempTableName);
+                                $this->processAutoIncrementTable($schemaName, $tableName, $primaryKeyColName, $primaryKeyColDataType, $tableColumnsInfo);
 			}
 		}
+	}
+
+	private function processAutoIncrementTable($schemaName, $tableName, $primaryKeyColName, $primaryKeyColDataType, $tableColumnsInfo) {
+                $seedConn = $this->_seedConnectionInfo["conn"];
+                $destConn = $this->_destConnectionInfo["conn"];
+
+                $seedHostname = $this->_seedConnectionInfo["hostname"];
+
+                $tempTableName = $this->createTemporaryComparisonTable($seedHostname, $schemaName, $tableName, $primaryKeyColName, $primaryKeyColDataType);
+                                
+                $highestSeedAutoIncId = $this->getMaxTableAutoIncId($seedConn, $schemaName, $tableName, $primaryKeyColName);
+                $highestDestAutoIncId = $this->getMaxTableAutoIncId($destConn, $schemaName, $tableName, $primaryKeyColName);
+                                
+                $maxIdToUse = min($highestSeedAutoIncId, $highestDestAutoIncId);
+                                
+                $allPrimaryKeyAutoIncIds = $this->getAllTableAutoIncrementIds($seedConn, $schemaName, $tableName, $primaryKeyColName, $maxIdToUse);
+                               
+                foreach ($allPrimaryKeyAutoIncIds as $id) {
+                        $md5Value = $this->getRowHash($seedConn, $schemaName, $tableName, $primaryKeyColName, $id, $tableColumnsInfo);
+                                        
+                        $this->insertRowHash($tempTableName, $primaryKeyColName, $id, "seed", $md5Value);
+                }
+                                
+                foreach ($allPrimaryKeyAutoIncIds as $id) {
+                        $md5Value = $this->getRowHash($destConn, $schemaName, $tableName, $primaryKeyColName, $id, $tableColumnsInfo);
+                                        
+                        $this->insertRowHash($tempTableName, $primaryKeyColName, $id, "dest", $md5Value);
+                }
+                                
+               $this->deleteRowsTheSame($tempTableName);
+	}
+
+	private function getPrimaryKeyColumns($tableColumnsInfo) {
+		$columns = array();
+
+                foreach ($tableColumnsInfo as $column) {
+                         if ($column["Key"] == "PRI") {
+                                $found = true;
+                                $primaryKeyColName = $column["Field"];
+                                $primaryKeyColDataType = $column["Type"];
+
+                                if ($column["Extra"] == "auto_increment") {
+					$columns[] = array("name" => $primaryKeyColName, "data_type" => $primaryKeyColDataType);
+					return array("columns" => $columns, "is_auto_increment" => true);
+                                }
+
+				$columns[] = array("name" => $primaryKeyColName, "data_type" => $primaryKeyColDataType);
+                        }
+                 }
+
+		return array("columns" => $columns, "is_auto_increment" => false);
 	}
 
 	private function deleteRowsTheSame($tempTableName) {
