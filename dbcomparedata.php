@@ -40,7 +40,8 @@ $configParser->parseConfig("/etc/mysql/dbcomparedata.ini");
 $adminConfig  = $configParser->getConfig("admin");
 $serverConfig = $configParser->getConfig("dbserver");
 
-echo "Comparing seed host [$seedHost] with [$destHost] " . ($schemaToCompare == "" ? "for all schemas" : "for schema $schemaToCompare") . "\n";
+echo "Comparing seed host [$seedHost] with [$destHost] " . 
+		($schemaToCompare == "" ? "for all schemas" : "for schema $schemaToCompare") . "\n";
 
 $databaseTable = new DatabaseTable();
 
